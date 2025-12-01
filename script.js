@@ -60,7 +60,7 @@ function pad(n){return String(n).padStart(2,'0');}
 function updateTimer(){
   const t = targetInput.value;
   const left = getTimeLeft(t);
-  if(left.total<=0) timerEl.textContent = "She's home! ❤️";
+  if(left.total<=0) timerEl.textContent = "She's home! �わ�";
   else timerEl.textContent = `${left.days}d ${pad(left.hours)}h ${pad(left.minutes)}m ${pad(left.seconds)}s`;
 }
 setInterval(updateTimer,1000);
@@ -101,29 +101,29 @@ document.getElementById('downloadBtn').addEventListener('click', ()=>{
 
 
 
-// Hourglass (6-hour segment) visualization
-const topSand = document.getElementById('topSand');
-const bottomSand = document.getElementById('bottomSand');
-const hourglass = document.getElementById('hourglass');
 
+
+// run once now
+updateTimer();
+
+
+// Hourglass visualization function (6-hour segment)
 function updateHourglassVisual(targetIso){
-  // compute total seconds until target
+  const topSand = document.getElementById('topSand');
+  const bottomSand = document.getElementById('bottomSand');
+  const hourglass = document.getElementById('hourglass');
+  if(!topSand || !bottomSand || !hourglass) return;
   const now = Date.now();
   const target = new Date(targetIso).getTime();
   let remaining = Math.max(0, Math.floor((target - now) / 1000)); // seconds
-  const sixHours = 6 * 60 * 60; // seconds in 6 hours
-  // remaining seconds in current 6-hour block until next 6-hour boundary relative to now->target
-  // We want the sand to represent the remainder of (remaining % sixHours)
+  const sixHours = 6 * 60 * 60; // seconds
   const remInBlock = remaining % sixHours;
-  // percent of block remaining (0..1)
-  const pct = remInBlock / sixHours;
-  // top sand should be proportional to pct (top is what's left to fall), bottom increases as (1-pct)
-  const topPct = pct * 100; // percent height
+  const pct = remInBlock / sixHours; // 0..1
+  const topPct = pct * 100;
   const bottomPct = (1 - pct) * 100;
-  if(topSand) topSand.style.height = topPct + '%';
-  if(bottomSand) bottomSand.style.height = bottomPct + '%';
-  // show falling grain only if remInBlock > 0
-  // Ensure a grain element exists for visual
+  topSand.style.height = topPct + '%';
+  bottomSand.style.height = bottomPct + '%';
+  // falling grain
   let grain = hourglass.querySelector('.hg-grain');
   if(remInBlock > 1){
     if(!grain){
@@ -137,13 +137,41 @@ function updateHourglassVisual(targetIso){
   }
 }
 
-// Integrate hourglass update into existing timer update loop
-const originalUpdateTimer = updateTimer;
-updateTimer = function(){
-  originalUpdateTimer();
-  const t = document.getElementById('targetInput').value;
-  try{ updateHourglassVisual(t); } catch(e){ /* ignore */ }
-};
 
-// run once now
+// Countdown - robust calculation using hidden targetIso (local)
+const timerEl = document.getElementById('timer');
+const targetInput = document.getElementById('targetInput');
+// ensure targetIso is read from hidden input (format: YYYY-MM-DDTHH:MM)
+const TARGET_ISO = targetInput ? targetInput.value : '2025-12-28T12:00';
+
+function getTimeLeftToTarget(iso){
+  // Create a Date object using local time by expanding to seconds
+  const isoWithSeconds = iso.length===16 ? iso + ':00' : iso;
+  const then = new Date(isoWithSeconds);
+  const now = new Date();
+  let diff = Math.max(0, then.getTime() - now.getTime()); // milliseconds
+  const days = Math.floor(diff / (1000*60*60*24));
+  diff -= days * (1000*60*60*24);
+  const hours = Math.floor(diff / (1000*60*60));
+  diff -= hours * (1000*60*60);
+  const minutes = Math.floor(diff / (1000*60));
+  diff -= minutes * (1000*60);
+  const seconds = Math.floor(diff / 1000);
+  return {days,hours,minutes,seconds,total: then.getTime() - now.getTime()};
+}
+
+function pad(n){return String(n).padStart(2,'0');}
+
+function updateTimer(){
+  const left = getTimeLeftToTarget(TARGET_ISO);
+  if(left.total<=0){
+    timerEl.textContent = "She's home! �わ�";
+    updateHourglassVisual(TARGET_ISO); // final update
+    return;
+  }
+  timerEl.textContent = `${left.days}d ${pad(left.hours)}h ${pad(left.minutes)}m ${pad(left.seconds)}s`;
+  updateHourglassVisual(TARGET_ISO);
+}
+
+setInterval(updateTimer, 1000);
 updateTimer();
